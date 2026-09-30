@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asni Guest House - Booking & Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN for Reports -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SQL.js CDN for WebAssembly SQLite Database -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fdf8f6',
+                            100: '#f2e8e5',
+                            500: '#a84323',
+                            600: '#8f3317',
+                            700: '#73270f',
+                            800: '#581d0a',
+                            900: '#3d1205',
+                        },
+                        gold: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom styles & glassmorphism details */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .dark-glass {
+            background: rgba(30, 27, 24, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c5c5c5;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a84323;
+        }
+        .banner-slide {
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Header Navigation -->
+    <header class="bg-gradient-to-r from-slate-900 via-brand-900 to-slate-900 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                
+                <!-- Logo & Branding -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="AsniApp.UI.switchTab('dashboard')">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-brand-500 to-gold-400 flex items-center justify-center shadow-md">
+                        <i class="fa-solid fa-hotel text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-wider text-amber-100">ASNI GUEST HOUSE</h1>
+                        <p class="text-xs text-amber-200/80 font-light">Luxury, Comfort & Authenticity</p>
+                    </div>
+                </div>
+
+                <!-- Clock & Role Privilege Switcher -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <div class="text-right text-xs text-slate-300 border-r border-slate-700 pr-6">
+                        <div id="liveClock" class="font-mono text-sm font-semibold text-amber-300">--:--:-- PM</div>
+                        <div id="liveDate" class="text-slate-400">Loading date...</div>
+                    </div>
+
+                    <!-- Notification Bell Dropdown Button -->
+                    <div class="relative">
+                        <button id="notifBtn" onclick="AsniApp.UI.toggleNotifDropdown()" class="relative p-2.5 text-slate-300 hover:text-white bg-slate-800/80 rounded-full hover:bg-slate-700 transition">
+                            <i class="fa-solid fa-bell text-lg"></i>
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse">0</span>
+                        </button>
+                        
+                        <!-- Notifications Popup Panel -->
+                        <div id="notifPanel" class="hidden absolute right-0 mt-3 w-80 sm:w-96 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                            <div class="p-4 bg-slate-900 text-white flex justify-between items-center border-b border-slate-800">
+                                <h3 class="font-semibold text-sm flex items-center"><i class="fa-solid fa-bell mr-2 text-amber-400"></i> System Alerts</h3>
+                                <button onclick="AsniApp.Notifications.markAllRead()" class="text-xs text-amber-300 hover:underline">Mark all read</button>
+                            </div>
+                            <div id="notifList" class="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Role Selector Pill -->
+                    <div class="flex items-center space-x-2 bg-slate-800/90 p-1.5 rounded-full border border-slate-700">
+                        <span class="text-xs font-medium text-slate-400 pl-3">Role:</span>
+                        <select id="roleSelector" onchange="AsniApp.Auth.switchRole(this.value)" class="bg-brand-600 text-white text-xs font-semibold rounded-full px-3 py-1.5 outline-none cursor-pointer hover:bg-brand-500 transition">
+                            <option value="admin">Administrator</option>
+                            <option value="receptionist">Receptionist</option>
+                            <option value="guest" selected>Guest / Client</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <div class="md:hidden flex items-center space-x-3">
+                    <button id="notifBtnMobile" onclick="AsniApp.UI.toggleNotifDropdown()" class="relative p-2 text-slate-300">
+                        <i class="fa-solid fa-bell text-xl"></i>
+                        <span id="notifBadgeMobile" class="hidden absolute top-0 right-0 bg-rose-500 text-white text-[9px] font-bold px-1 py-0.2 rounded-full">0</span>
+                    </button>
+                    <button onclick="AsniApp.UI.toggleMobileMenu()" class="p-2 text-slate-200 hover:text-white">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Bar Tabs -->
+        <nav class="bg-slate-900/90 border-t border-slate-800 backdrop-blur-md">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex space-x-1 sm:space-x-4 overflow-x-auto custom-scrollbar py-2" id="mainNavTabs">
+                    <button onclick="AsniApp.UI.switchTab('dashboard')" data-tab="dashboard" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-white bg-brand-600">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('rooms')" data-tab="rooms" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-bed"></i>
+                        <span>Room Stays</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('restaurant')" data-tab="restaurant" class="nav-btn px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-utensils"></i>
+                        <span>Restaurant & Dining</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('reports')" data-tab="reports" class="nav-btn admin-only hidden px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                        <span>Financial Reports</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('frontdesk')" data-tab="frontdesk" class="nav-btn staff-only hidden px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-concierge-bell"></i>
+                        <span>Front Desk Matrix</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('guest-portal')" data-tab="guest-portal" class="nav-btn guest-only px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-user-check"></i>
+                        <span>My Guest Stays</span>
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('settings')" data-tab="settings" class="nav-btn admin-only hidden px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition flex items-center space-x-2 text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <i class="fa-solid fa-gears"></i>
+                        <span>System DB Settings</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Mobile Drawer Menu -->
+        <div id="mobileDrawer" class="hidden md:hidden bg-slate-900 border-b border-slate-800 px-4 pt-2 pb-4 space-y-3">
+            <div class="flex justify-between items-center pb-2 border-b border-slate-800 text-xs text-slate-300">
+                <span>Logged in Privilege:</span>
+                <select id="roleSelectorMobile" onchange="AsniApp.Auth.switchRole(this.value)" class="bg-brand-600 text-white rounded px-2 py-1 outline-none">
+                    <option value="admin">Administrator</option>
+                    <option value="receptionist">Receptionist</option>
+                    <option value="guest" selected>Guest / Client</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Rotating Promotional Ad Banner Carousel -->
+    <section class="bg-slate-900 text-white overflow-hidden relative shadow-inner">
+        <div id="bannerContainer" class="relative w-full h-44 sm:h-52 md:h-60">
+            <!-- Banners injected dynamically -->
+        </div>
+        <div class="absolute bottom-3 right-4 flex space-x-2 z-10" id="bannerDots">
+            <!-- Dots populated dynamically -->
+        </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: DASHBOARD OVERVIEW -->
+        <div id="view-dashboard" class="tab-content space-y-6">
+            <!-- Top Role Welcome Badge -->
+            <div class="bg-gradient-to-r from-amber-500/10 via-brand-500/10 to-amber-500/10 border border-brand-500/20 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <span id="currentRoleBadge" class="bg-brand-600 text-white text-xs uppercase font-bold tracking-wider px-2.5 py-1 rounded-full">GUEST PRIVILEGE VIEW</span>
+                    <h2 class="text-2xl font-bold text-slate-800 mt-2">Welcome to Asni Guest House</h2>
+                    <p class="text-sm text-slate-600">Experience world-class hospitality, traditional Ethiopian coffee ceremonies, and tranquil stays.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="AsniApp.UI.switchTab('rooms')" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-plus"></i> Book a Room
+                    </button>
+                    <button onclick="AsniApp.UI.switchTab('restaurant')" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-md transition flex items-center gap-2">
+                        <i class="fa-solid fa-utensils"></i> Reserve Dining
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpiGrid">
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Revenue</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="kpiRevenue">$0.00</h3>
+                        <p class="text-xs text-emerald-600 font-medium mt-1"><i class="fa-solid fa-arrow-trend-up"></i> Live calculated</p>
+                    </div>
+                    <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-vault"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Occupancy Rate</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="kpiOccupancy">0%</h3>
+                        <p class="text-xs text-slate-500 mt-1" id="kpiOccupancyRooms">0 of 0 Rooms</p>
+                    </div>
+                    <div class="w-12 h-12 bg-brand-100 text-brand-700 rounded-2xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-bed"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Stay Bookings</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="kpiActiveBookings">0</h3>
+                        <p class="text-xs text-blue-600 mt-1"><i class="fa-solid fa-user-group"></i> Checked-in Guests</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-2xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-passport"></i>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Today's Dining Tables</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="kpiDiningBookings">0</h3>
+                        <p class="text-xs text-emerald-600 mt-1"><i class="fa-solid fa-chair"></i> Reserved Tables</p>
+                    </div>
+                    <div class="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-2xl flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-utensils"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Featured Sections -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Recent Bookings Table Preview -->
+                <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-brand-500"></i> Recent Guest Reservations
+                        </h3>
+                        <button onclick="AsniApp.UI.switchTab('rooms')" class="text-xs text-brand-600 font-semibold hover:underline">View All Rooms</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-slate-50 text-slate-500 text-xs font-semibold uppercase">
+                                    <th class="p-3">Guest</th>
+                                    <th class="p-3">Room</th>
+                                    <th class="p-3">Dates</th>
+                                    <th class="p-3">Amount</th>
+                                    <th class="p-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboardBookingsTable" class="divide-y divide-slate-100">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Featured Amenities & Quick Actions -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-4">
+                    <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-concierge-bell text-gold-500"></i> Guest Services & Amenities
+                    </h3>
+                    <div class="space-y-3" id="servicesList">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ROOM STAYS & BOOKING ENGINE -->
+        <div id="view-rooms" class="tab-content space-y-6 hidden">
+            <!-- Filter Bar -->
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase">Filter:</span>
+                    <button onclick="AsniApp.Rooms.filterType('ALL')" class="room-filter-btn active-filter px-3 py-1.5 rounded-xl text-xs font-semibold bg-brand-600 text-white">All Rooms</button>
+                    <button onclick="AsniApp.Rooms.filterType('Deluxe')" class="room-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Deluxe Suites</button>
+                    <button onclick="AsniApp.Rooms.filterType('Executive')" class="room-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Executive</button>
+                    <button onclick="AsniApp.Rooms.filterType('Standard')" class="room-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Standard</button>
+                    <button onclick="AsniApp.Rooms.filterType('Family')" class="room-filter-btn px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Family</button>
+                </div>
+                <div class="flex gap-2">
+                    <select id="roomStatusFilter" onchange="AsniApp.Rooms.applyFilters()" class="bg-slate-50 border border-slate-300 text-xs font-semibold rounded-xl px-3 py-2 text-slate-700 outline-none">
+                        <option value="ALL">All Statuses</option>
+                        <option value="Available">Available Only</option>
+                        <option value="Occupied">Occupied</option>
+                        <option value="Maintenance">Maintenance</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Rooms Showcase Grid -->
+            <div id="roomsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- TAB 3: RESTAURANT & DINING MODULE -->
+        <div id="view-restaurant" class="tab-content space-y-6 hidden">
+            <!-- Restaurant Sub-tabs -->
+            <div class="flex space-x-2 border-b border-slate-200 pb-2">
+                <button onclick="AsniApp.Restaurant.switchSubTab('tables')" id="subtab-btn-tables" class="rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-brand-600 text-white shadow-sm">
+                    <i class="fa-solid fa-chair mr-1"></i> Table Floorplan & Reservations
+                </button>
+                <button onclick="AsniApp.Restaurant.switchSubTab('menu')" id="subtab-btn-menu" class="rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-200 text-slate-700 hover:bg-slate-300">
+                    <i class="fa-solid fa-utensils mr-1"></i> Food & Beverage Menu
+                </button>
+            </div>
+
+            <!-- Table Layout View -->
+            <div id="rest-subview-tables" class="space-y-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Asni Dining Floorplan</h3>
+                            <p class="text-xs text-slate-500">Select an available table to place a reservation or dining order.</p>
+                        </div>
+                        <div class="flex space-x-4 text-xs font-medium">
+                            <span class="flex items-center"><i class="fa-solid fa-circle text-emerald-500 mr-1.5"></i> Available</span>
+                            <span class="flex items-center"><i class="fa-solid fa-circle text-rose-500 mr-1.5"></i> Reserved</span>
+                        </div>
+                    </div>
+                    <div id="tablesLayoutGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                        <!-- Dynamic Tables -->
+                    </div>
+                </div>
+
+                <!-- Existing Table Reservations Table -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-3">Today's Dining Reservations</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase font-semibold">
+                                <tr>
+                                    <th class="p-3">Table</th>
+                                    <th class="p-3">Guest Name</th>
+                                    <th class="p-3">Party Size</th>
+                                    <th class="p-3">Time</th>
+                                    <th class="p-3">Notes</th>
+                                    <th class="p-3">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableReservationsBody" class="divide-y divide-slate-100">
+                                <!-- Injected dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menu Browser View -->
+            <div id="rest-subview-menu" class="hidden space-y-6">
+                <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center flex-wrap gap-3">
+                    <div class="flex space-x-2">
+                        <button onclick="AsniApp.Restaurant.filterMenu('ALL')" class="menu-cat-btn bg-brand-600 text-white text-xs font-bold px-3 py-1.5 rounded-xl">All Items</button>
+                        <button onclick="AsniApp.Restaurant.filterMenu('Ethiopian Traditional')" class="menu-cat-btn bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-slate-200">Ethiopian Traditional</button>
+                        <button onclick="AsniApp.Restaurant.filterMenu('International')" class="menu-cat-btn bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-slate-200">International</button>
+                        <button onclick="AsniApp.Restaurant.filterMenu('Beverages')" class="menu-cat-btn bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-xl hover:bg-slate-200">Beverages & Coffee</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="menuItemsGrid">
+                    <!-- Dynamic Menu Items -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: FINANCIAL & OPERATIONAL REPORTS (Admin Only) -->
+        <div id="view-reports" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Financial Analytics & Operations Summary</h2>
+                    <p class="text-xs text-slate-500">Complete performance breakdown and audit report for Asni Guest House.</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="AsniApp.Reports.exportCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> Export CSV
+                    </button>
+                    <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2">
+                        <i class="fa-solid fa-print"></i> Print Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Revenue Chart -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-sm mb-4">Revenue Breakdown (Rooms vs Restaurant)</h3>
+                    <div class="h-64 relative">
+                        <canvas id="revenueChartCanvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Occupancy Chart -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="font-bold text-slate-800 text-sm mb-4">Room Occupancy Distribution</h3>
+                    <div class="h-64 relative flex items-center justify-center">
+                        <canvas id="occupancyChartCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Transactions Log -->
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-900 text-base mb-3">Master Transaction Ledger</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 border-b border-slate-200 uppercase font-semibold text-slate-500">
+                            <tr>
+                                <th class="p-3">Ref ID</th>
+                                <th class="p-3">Category</th>
+                                <th class="p-3">Description</th>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Payment Method</th>
+                                <th class="p-3 text-right">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsLedgerBody" class="divide-y divide-slate-100">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: FRONT DESK MATRIX (Staff / Receptionist) -->
+        <div id="view-frontdesk" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Front Desk & Housekeeping Console</h2>
+                    <p class="text-xs text-slate-500">Live operational room control for receptionists.</p>
+                </div>
+                <button onclick="AsniApp.UI.openWalkInModal()" class="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Walk-in Registration
+                </button>
+            </div>
+
+            <!-- Room Frontdesk Grid -->
+            <div id="frontdeskRoomGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <!-- Dynamic cards -->
+            </div>
+        </div>
+
+        <!-- TAB 6: MY GUEST STAYS (Guest Portal) -->
+        <div id="view-guest-portal" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-900">My Stay Reservations & Orders</h2>
+                <p class="text-xs text-slate-500">View current, upcoming, and past booking records at Asni Guest House.</p>
+            </div>
+
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <h3 class="font-bold text-slate-800 text-sm mb-3">Room Stay History</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Booking Ref</th>
+                                <th class="p-3">Room</th>
+                                <th class="p-3">Check In</th>
+                                <th class="p-3">Check Out</th>
+                                <th class="p-3">Total</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="guestBookingsList" class="divide-y divide-slate-100">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 7: DATABASE & SYSTEM SETTINGS (Admin Only) -->
+        <div id="view-settings" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h2 class="text-xl font-bold text-slate-900">SQLite Database Management</h2>
+                <p class="text-xs text-slate-600">This application runs a full SQLite database in WebAssembly (`sql.js`) statefully stored in local memory and persisted to local browser storage.</p>
+                <div class="flex gap-4 pt-2">
+                    <button onclick="AsniApp.DB.resetToSeedData()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Reset DB to Fresh Seed Data
+                    </button>
+                    <button onclick="AsniApp.DB.exportDatabaseFile()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition">
+                        <i class="fa-solid fa-download mr-1"></i> Download SQLite Binary File (.sqlite)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-hotel text-brand-500 text-base"></i>
+                <span class="text-slate-200 font-semibold">Asni Guest House System</span>
+                <span>&copy; 2026 All Rights Reserved</span>
+            </div>
+            <div class="flex space-x-4">
+                <span>SQLite WebAssembly Engine</span>
+                <span>•</span>
+                <span>Tailwind CSS</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- MODAL: Room Booking Modal -->
+    <div id="roomBookingModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2" id="modalRoomTitle">
+                    <i class="fa-solid fa-bed text-gold-400"></i> Book Room
+                </h3>
+                <button onclick="AsniApp.UI.closeModal('roomBookingModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="roomBookingForm" onsubmit="AsniApp.Rooms.submitBooking(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modalRoomId">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Check-in Date</label>
+                        <input type="date" id="bookCheckIn" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Check-out Date</label>
+                        <input type="date" id="bookCheckOut" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Guest Full Name</label>
+                    <input type="text" id="bookGuestName" placeholder="e.g. Abebe Bikila" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Contact Phone</label>
+                    <input type="tel" id="bookGuestPhone" placeholder="+251 91 123 4567" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div class="bg-brand-50 p-3 rounded-xl border border-brand-200 flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">Estimated Total Rate:</span>
+                    <span id="modalCalculatedPrice" class="text-base font-extrabold text-brand-700">$0.00</span>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="AsniApp.UI.closeModal('roomBookingModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 text-slate-700 hover:bg-slate-300">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700 shadow-md">Confirm Reservation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Table Reservation Modal -->
+    <div id="tableModal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center gap-2">
+                    <i class="fa-solid fa-chair text-gold-400"></i> Table Reservation
+                </h3>
+                <button onclick="AsniApp.UI.closeModal('tableModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form onsubmit="AsniApp.Restaurant.submitTableReservation(event)" class="p-6 space-y-4">
+                <input type="hidden" id="modalTableId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Table Number & Location</label>
+                    <input type="text" id="modalTableName" readonly class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Guest Name</label>
+                    <input type="text" id="tableGuestName" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Guests Count</label>
+                        <input type="number" id="tablePartySize" min="1" max="12" value="2" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Time Slot</label>
+                        <input type="time" id="tableTime" value="19:00" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Special Notes / Requests</label>
+                    <input type="text" id="tableNotes" placeholder="e.g. Birthday celebration, High chair" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold">
+                </div>
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="AsniApp.UI.closeModal('tableModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-200 text-slate-700">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700">Reserve Table</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <script>
+        /**
+         * Asni Guest House IIFE Modular Application Architecture
+         */
+        const AsniApp = (function() {
+
+            // Private Module State
+            let db = null;
+            let currentRole = 'guest'; // Default privilege role: guest | receptionist | admin
+            let charts = {};
+            let currentBannerIndex = 0;
+
+            // ==========================================
+            // MODULE 1: DB (SQLite WASM Persistence)
+            // ==========================================
+            const DB = (function() {
+
+                async function init() {
+                    try {
+                        const SQL = await initSqlJs({
+                            locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+                        });
+
+                        // Check localStorage for binary dump fallback
+                        const savedDb = localStorage.getItem('asni_guesthouse_sqlite');
+                        if (savedDb) {
+                            try {
+                                const uInt8Array = new Uint8Array(JSON.parse(savedDb));
+                                db = new SQL.Database(uInt8Array);
+                            } catch (err) {
+                                console.warn("Failed to restore saved DB state, seeding fresh...", err);
+                                db = new SQL.Database();
+                                seedDatabase();
+                            }
+                        } else {
+                            db = new SQL.Database();
+                            seedDatabase();
+                        }
+
+                        saveToLocalStorage();
+                        console.log("SQLite WASM Initialized Successfully");
+                    } catch (e) {
+                        console.error("SQL.js initialization error:", e);
+                    }
+                }
+
+                function saveToLocalStorage() {
+                    if (!db) return;
+                    try {
+                        const binaryArray = db.export();
+                        localStorage.setItem('asni_guesthouse_sqlite', JSON.stringify(Array.from(binaryArray)));
+                    } catch (e) {
+                        console.error("Error saving SQLite to localStorage:", e);
+                    }
+                }
+
+                function seedDatabase() {
+                    // Create Database Tables
+                    db.exec(`
+                        CREATE TABLE IF NOT EXISTS rooms (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            room_number TEXT UNIQUE,
+                            type TEXT,
+                            price REAL,
+                            capacity INTEGER,
+                            status TEXT,
+                            description TEXT,
+                            badge TEXT,
+                            image TEXT
+                        );
+
+                        CREATE TABLE IF NOT EXISTS bookings (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            room_id INTEGER,
+                            guest_name TEXT,
+                            guest_phone TEXT,
+                            check_in TEXT,
+                            check_out TEXT,
+                            status TEXT,
+                            total_price REAL,
+                            payment_status TEXT,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        );
+
+                        CREATE TABLE IF NOT EXISTS tables (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            table_number TEXT UNIQUE,
+                            location TEXT,
+                            capacity INTEGER,
+                            status TEXT
+                        );
+
+                        CREATE TABLE IF NOT EXISTS table_reservations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            table_id INTEGER,
+                            guest_name TEXT,
+                            party_size INTEGER,
+                            time_slot TEXT,
+                            notes TEXT,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        );
+
+                        CREATE TABLE IF NOT EXISTS menu_items (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            name TEXT,
+                            category TEXT,
+                            price REAL,
+                            description TEXT,
+                            image TEXT
+                        );
+
+                        CREATE TABLE IF NOT EXISTS transactions (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            category TEXT,
+                            description TEXT,
+                            amount REAL,
+                            payment_method TEXT,
+                            date TEXT
+                        );
+
+                        CREATE TABLE IF NOT EXISTS notifications (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            title TEXT,
+                            message TEXT,
+                            is_read INTEGER DEFAULT 0,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        );
+
+                        CREATE TABLE IF NOT EXISTS ads (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            title TEXT,
+                            tagline TEXT,
+                            discount TEXT,
+                            bg_gradient TEXT,
+                            cta_text TEXT
+                        );
+                    `);
+
+                    // Seed Rooms
+                    db.exec(`
+                        INSERT INTO rooms (room_number, type, price, capacity, status, description, badge, image) VALUES
+                        ('101', 'Standard', 80.00, 2, 'Available', 'Cozy standard room with plush king bed, Wi-Fi & Garden view.', 'Popular', 'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=600&q=80'),
+                        ('102', 'Standard', 85.00, 2, 'Occupied', 'Comfortable double room with working desk & private bath.', 'Cozy', 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=600&q=80'),
+                        ('201', 'Deluxe', 140.00, 2, 'Available', 'Spacious deluxe suite with balcony views & Ethiopian coffee corner.', 'Luxury Choice', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80'),
+                        ('202', 'Deluxe', 150.00, 3, 'Available', 'Premium suite featuring king bed, lounge chairs & rainfall shower.', 'Featured', 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=600&q=80'),
+                        ('301', 'Executive', 220.00, 4, 'Occupied', 'High-floor executive penthouse suite with panoramic view & jacuzzi.', 'VIP Suite', 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=600&q=80'),
+                        ('302', 'Family', 180.00, 5, 'Maintenance', 'Large multi-bed family suite with living area and kitchenette.', 'Family Friendly', 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?auto=format&fit=crop&w=600&q=80');
+                    `);
+
+                    // Seed Bookings
+                    db.exec(`
+                        INSERT INTO bookings (room_id, guest_name, guest_phone, check_in, check_out, status, total_price, payment_status) VALUES
+                        (2, 'Ermias Tesfaye', '+251 911 002233', '2026-09-28', '2026-10-02', 'Checked-In', 340.00, 'Paid'),
+                        (5, 'Sara Jenkins', '+1 415 555 0199', '2026-09-29', '2026-10-04', 'Checked-In', 1100.00, 'Paid'),
+                        (1, 'Dawit Alemu', '+251 922 445566', '2026-10-05', '2026-10-08', 'Confirmed', 240.00, 'Pending');
+                    `);
+
+                    // Seed Tables
+                    db.exec(`
+                        INSERT INTO tables (table_number, location, capacity, status) VALUES
+                        ('T-01', 'Indoor Main', 4, 'Available'),
+                        ('T-02', 'Indoor Main', 2, 'Reserved'),
+                        ('T-03', 'Garden Terrace', 4, 'Available'),
+                        ('T-04', 'Garden Terrace', 6, 'Available'),
+                        ('T-05', 'Rooftop Lounge', 2, 'Reserved'),
+                        ('T-06', 'Rooftop Lounge', 4, 'Available');
+                    `);
+
+                    // Seed Table Reservations
+                    db.exec(`
+                        INSERT INTO table_reservations (table_id, guest_name, party_size, time_slot, notes) VALUES
+                        (2, 'Makeda Tadesse', 2, '19:30', 'Romantic Anniversary Dinner'),
+                        (5, 'Dr. Marcus Vance', 2, '20:00', 'Window seat preferred');
+                    `);
+
+                    // Seed Menu Items
+                    db.exec(`
+                        INSERT INTO menu_items (name, category, price, description, image) VALUES
+                        ('Special Doro Wat', 'Ethiopian Traditional', 18.00, 'Traditional spicy chicken stew served with hard-boiled eggs and fresh Injera.', 'https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=400&q=80'),
+                        ('Gomen Besiga', 'Ethiopian Traditional', 16.00, 'Collard greens cooked with tender beef chunks, spiced butter & garlic.', 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80'),
+                        ('Grilled Ribeye Steak', 'International', 28.00, '250g tender beef steak served with garlic mashed potatoes and roasted veggies.', 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80'),
+                        ('Authentic Coffee Ceremony', 'Beverages', 8.00, 'Full traditional roasted coffee service with popcorn and aromatic incense.', 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=400&q=80'),
+                        ('Fresh Mango Avocado Juice', 'Beverages', 5.00, 'Layered organic local mango and creamy avocado smoothie.', 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?auto=format&fit=crop&w=400&q=80');
+                    `);
+
+                    // Seed Transactions
+                    db.exec(`
+                        INSERT INTO transactions (category, description, amount, payment_method, date) VALUES
+                        ('Room Stay', 'Room 102 - 4 Nights Stay', 340.00, 'Credit Card', '2026-09-28'),
+                        ('Room Stay', 'Room 301 - Penthouse Stay', 1100.00, 'Bank Transfer', '2026-09-29'),
+                        ('Restaurant', 'Table T-02 Dinner Order', 65.50, 'Cash', '2026-09-29'),
+                        ('Spa Service', 'Deep Tissue Spa Package', 90.00, 'Credit Card', '2026-09-30');
+                    `);
+
+                    // Seed Notifications
+                    db.exec(`
+                        INSERT INTO notifications (title, message, is_read) VALUES
+                        ('New Booking Confirmed', 'Guest Dawit Alemu reserved Room 101 for Oct 5.', 0),
+                        ('Table Reserved', 'Table T-02 reserved by Makeda Tadesse for 7:30 PM.', 0),
+                        ('Housekeeping Alert', 'Room 302 maintenance check requested.', 1);
+                    `);
+
+                    // Seed Promotional Ads
+                    db.exec(`
+                        INSERT INTO ads (title, tagline, discount, bg_gradient, cta_text) VALUES
+                        ('Weekend Spa & Relax Package', 'Enjoy complimentary Ethiopian traditional coffee with any 60-min massage', '20% OFF', 'from-amber-700 to-brand-900', 'Claim Spa Pass'),
+                        ('Rooftop Candlelight Dining', 'Breathtaking sunsets with authentic Ethiopian cultural cuisine', 'Special Menu', 'from-purple-900 to-slate-900', 'Reserve Table Now'),
+                        ('Airport Shuttle Service', 'Seamless roundtrip transportation to Bole International Airport', 'Free for Deluxe Stays', 'from-emerald-900 to-slate-900', 'Book Transfer');
+                    `);
+
+                    saveToLocalStorage();
+                }
+
+                function query(sql, params = []) {
+                    if (!db) return [];
+                    const stmt = db.prepare(sql);
+                    stmt.bind(params);
+                    const results = [];
+                    while (stmt.step()) {
+                        results.push(stmt.getAsObject());
+                    }
+                    stmt.free();
+                    return results;
+                }
+
+                function execute(sql, params = []) {
+                    if (!db) return;
+                    db.run(sql, params);
+                    saveToLocalStorage();
+                }
+
+                return {
+                    init,
+                    query,
+                    execute,
+                    resetToSeedData: function() {
+                        localStorage.removeItem('asni_guesthouse_sqlite');
+                        seedDatabase();
+                        saveToLocalStorage();
+                        AsniApp.UI.refreshAll();
+                        AsniApp.Notifications.showToast('Database reset to original seed state', 'info');
+                    },
+                    exportDatabaseFile: function() {
+                        if (!db) return;
+                        const binaryArray = db.export();
+                        const blob = new Blob([binaryArray], { type: 'application/octet-stream' });
+                        const a = document.createElement('a');
+                        a.href = URL.createObjectURL(blob);
+                        a.download = 'Asni_Guest_House_DB.sqlite';
+                        a.click();
+                    }
+                };
+            })();
+
+            // ==========================================
+            // MODULE 2: AUTH & PRIVILEGES
+            // ==========================================
+            const Auth = (function() {
+
+                function switchRole(newRole) {
+                    currentRole = newRole;
+                    // Sync desktop and mobile selectors
+                    document.getElementById('roleSelector').value = newRole;
+                    document.getElementById('roleSelectorMobile').value = newRole;
+
+                    // Update UI elements depending on role permissions
+                    const roleBadge = document.getElementById('currentRoleBadge');
+                    if (roleBadge) {
+                        roleBadge.innerText = `${newRole.toUpperCase()} PRIVILEGE VIEW`;
+                    }
+
+                    // Hide/Show navigation tabs based on role
+                    document.querySelectorAll('.admin-only').forEach(el => {
+                        el.classList.toggle('hidden', currentRole !== 'admin');
+                    });
+                    document.querySelectorAll('.staff-only').forEach(el => {
+                        el.classList.toggle('hidden', currentRole !== 'admin' && currentRole !== 'receptionist');
+                    });
+                    document.querySelectorAll('.guest-only').forEach(el => {
+                        el.classList.toggle('hidden', currentRole !== 'guest');
+                    });
+
+                    Notifications.showToast(`Switched view to ${newRole.toUpperCase()} privilege`, 'success');
+                    UI.refreshAll();
+                }
+
+                return {
+                    switchRole,
+                    getRole: () => currentRole
+                };
+            })();
+
+            // ==========================================
+            // MODULE 3: ROOMS & BOOKING
+            // ==========================================
+            const Rooms = (function() {
+                let currentCategoryFilter = 'ALL';
+
+                function filterType(type) {
+                    currentCategoryFilter = type;
+                    document.querySelectorAll('.room-filter-btn').forEach(btn => {
+                        btn.classList.remove('bg-brand-600', 'text-white');
+                        btn.classList.add('bg-slate-100', 'text-slate-700');
+                    });
+                    event.target.classList.remove('bg-slate-100', 'text-slate-700');
+                    event.target.classList.add('bg-brand-600', 'text-white');
+                    applyFilters();
+                }
+
+                function applyFilters() {
+                    const statusFilter = document.getElementById('roomStatusFilter').value;
+                    let sql = 'SELECT * FROM rooms WHERE 1=1';
+                    const params = [];
+
+                    if (currentCategoryFilter !== 'ALL') {
+                        sql += ' AND type = ?';
+                        params.push(currentCategoryFilter);
+                    }
+                    if (statusFilter !== 'ALL') {
+                        sql += ' AND status = ?';
+                        params.push(statusFilter);
+                    }
+
+                    const rooms = DB.query(sql, params);
+                    renderRoomsGrid(rooms);
+                }
+
+                function renderRoomsGrid(rooms) {
+                    const container = document.getElementById('roomsGrid');
+                    if (!container) return;
+
+                    if (rooms.length === 0) {
+                        container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">No rooms match the selected criteria.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = rooms.map(room => {
+                        const isAvailable = room.status === 'Available';
+                        let statusColor = 'bg-emerald-100 text-emerald-800';
+                        if (room.status === 'Occupied') statusColor = 'bg-rose-100 text-rose-800';
+                        if (room.status === 'Maintenance') statusColor = 'bg-amber-100 text-amber-800';
+
+                        return `
+                            <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-slate-200 transition flex flex-col">
+                                <div class="relative h-48 overflow-hidden bg-slate-100">
+                                    <img src="${room.image}" alt="Room ${room.room_number}" class="w-full h-full object-cover transition duration-500 hover:scale-105" onerror="this.src='https://placehold.co/600x400/e2e8f0/475569?text=Asni+Room'">
+                                    <span class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">${room.type}</span>
+                                    <span class="absolute top-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-full ${statusColor}">${room.status}</span>
+                                </div>
+                                <div class="p-5 flex-grow flex flex-col justify-between space-y-4">
+                                    <div>
+                                        <div class="flex justify-between items-baseline">
+                                            <h3 class="font-bold text-lg text-slate-900">Room ${room.room_number}</h3>
+                                            <div class="text-right">
+                                                <span class="text-xl font-extrabold text-brand-700">$${room.price.toFixed(2)}</span>
+                                                <span class="text-xs text-slate-400"> / night</span>
+                                            </div>
+                                        </div>
+                                        <p class="text-xs text-slate-600 mt-2 line-clamp-2">${room.description}</p>
+                                        <div class="flex items-center space-x-4 mt-3 text-xs text-slate-500">
+                                            <span><i class="fa-solid fa-user-group mr-1"></i> Up to ${room.capacity} Guests</span>
+                                            <span><i class="fa-solid fa-wifi mr-1"></i> Highspeed Wifi</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-2">
+                                        ${isAvailable ? `
+                                            <button onclick="AsniApp.Rooms.openBookingModal(${room.id}, '${room.room_number}', ${room.price})" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md flex justify-center items-center gap-2">
+                                                <i class="fa-solid fa-calendar-check"></i> Instant Booking
+                                            </button>
+                                        ` : `
+                                            <button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-2.5 rounded-xl text-xs cursor-not-allowed">
+                                                Currently Unavailable
+                                            </button>
+                                        `}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                function openBookingModal(roomId, roomNum, price) {
+                    document.getElementById('modalRoomId').value = roomId;
+                    document.getElementById('modalRoomTitle').innerHTML = `<i class="fa-solid fa-bed text-gold-400"></i> Reserve Room ${roomNum}`;
+                    document.getElementById('modalCalculatedPrice').innerText = `$${price.toFixed(2)}`;
+                    
+                    // Set default dates (Today to tomorrow)
+                    const today = new Date().toISOString().split('T')[0];
+                    const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+                    document.getElementById('bookCheckIn').value = today;
+                    document.getElementById('bookCheckOut').value = tomorrow;
+
+                    UI.openModal('roomBookingModal');
+                }
+
+                function submitBooking(e) {
+                    e.preventDefault();
+                    const roomId = document.getElementById('modalRoomId').value;
+                    const guestName = document.getElementById('bookGuestName').value;
+                    const guestPhone = document.getElementById('bookGuestPhone').value;
+                    const checkIn = document.getElementById('bookCheckIn').value;
+                    const checkOut = document.getElementById('bookCheckOut').value;
+
+                    // Fetch price
+                    const room = DB.query('SELECT price FROM rooms WHERE id = ?', [roomId])[0];
+                    const pricePerNight = room ? room.price : 100;
+                    const total = pricePerNight; // Simplified 1 night minimum calculation
+
+                    // Insert Booking
+                    DB.execute(
+                        'INSERT INTO bookings (room_id, guest_name, guest_phone, check_in, check_out, status, total_price, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                        [roomId, guestName, guestPhone, checkIn, checkOut, 'Confirmed', total, 'Paid']
+                    );
+
+                    // Update room status
+                    DB.execute('UPDATE rooms SET status = "Occupied" WHERE id = ?', [roomId]);
+
+                    // Add Notification & Transaction
+                    DB.execute('INSERT INTO notifications (title, message) VALUES (?, ?)', [
+                        'New Room Reservation',
+                        `Room ${roomId} booked by ${guestName} (${checkIn} to ${checkOut}).`
+                    ]);
+                    DB.execute('INSERT INTO transactions (category, description, amount, payment_method, date) VALUES (?, ?, ?, ?, ?)', [
+                        'Room Stay',
+                        `Booking for ${guestName}`,
+                        total,
+                        'Credit Card',
+                        new Date().toISOString().split('T')[0]
+                    ]);
+
+                    UI.closeModal('roomBookingModal');
+                    Notifications.showToast(`Booking confirmed for ${guestName}!`, 'success');
+                    UI.refreshAll();
+                }
+
+                return {
+                    filterType,
+                    applyFilters,
+                    openBookingModal,
+                    submitBooking
+                };
+            })();
+
+            // ==========================================
+            // MODULE 4: RESTAURANT & DINING
+            // ==========================================
+            const Restaurant = (function() {
+
+                function switchSubTab(tab) {
+                    document.getElementById('rest-subview-tables').classList.toggle('hidden', tab !== 'tables');
+                    document.getElementById('rest-subview-menu').classList.toggle('hidden', tab !== 'menu');
+
+                    document.getElementById('subtab-btn-tables').className = tab === 'tables' 
+                        ? 'rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-brand-600 text-white shadow-sm'
+                        : 'rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-200 text-slate-700 hover:bg-slate-300';
+
+                    document.getElementById('subtab-btn-menu').className = tab === 'menu'
+                        ? 'rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-brand-600 text-white shadow-sm'
+                        : 'rest-sub-btn px-4 py-2 rounded-xl text-sm font-bold bg-slate-200 text-slate-700 hover:bg-slate-300';
+                }
+
+                function renderTables() {
+                    const tables = DB.query('SELECT * FROM tables');
+                    const grid = document.getElementById('tablesLayoutGrid');
+                    if (!grid) return;
+
+                    grid.innerHTML = tables.map(t => {
+                        const isAvailable = t.status === 'Available';
+                        return `
+                            <div class="p-4 rounded-2xl border text-center transition flex flex-col justify-between ${
+                                isAvailable ? 'bg-emerald-50/60 border-emerald-200 hover:border-emerald-400' : 'bg-rose-50/60 border-rose-200'
+                            }">
+                                <div>
+                                    <div class="w-10 h-10 mx-auto mb-2 rounded-full flex items-center justify-center ${
+                                        isAvailable ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                                    }">
+                                        <i class="fa-solid fa-chair text-lg"></i>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 text-sm">${t.table_number}</h4>
+                                    <p class="text-[11px] text-slate-500">${t.location}</p>
+                                    <span class="text-[10px] font-semibold text-slate-400"><i class="fa-solid fa-user-group mr-1"></i> ${t.capacity} seats</span>
+                                </div>
+                                <div class="mt-3">
+                                    ${isAvailable ? `
+                                        <button onclick="AsniApp.Restaurant.openTableModal(${t.id}, '${t.table_number}', '${t.location}')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1.5 rounded-lg">Reserve</button>
+                                    ` : `
+                                        <span class="text-[11px] font-bold text-rose-600 uppercase">Reserved</span>
+                                    `}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    renderReservationsList();
+                }
+
+                function renderReservationsList() {
+                    const reservations = DB.query(`
+                        SELECT r.*, t.table_number FROM table_reservations r 
+                        JOIN tables t ON r.table_id = t.id 
+                        ORDER BY r.id DESC
+                    `);
+                    const body = document.getElementById('tableReservationsBody');
+                    if (!body) return;
+
+                    if (reservations.length === 0) {
+                        body.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">No active dining reservations.</td></tr>`;
+                        return;
+                    }
+
+                    body.innerHTML = reservations.map(r => `
+                        <tr>
+                            <td class="p-3 font-bold text-brand-700">${r.table_number}</td>
+                            <td class="p-3 font-semibold text-slate-800">${r.guest_name}</td>
+                            <td class="p-3">${r.party_size} Guests</td>
+                            <td class="p-3 font-mono">${r.time_slot}</td>
+                            <td class="p-3 text-slate-500 italic">${r.notes || '-'}</td>
+                            <td class="p-3">
+                                <button onclick="AsniApp.Restaurant.cancelReservation(${r.id}, ${r.table_id})" class="text-xs text-rose-600 hover:underline font-semibold">Cancel</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                function openTableModal(tableId, tableNum, location) {
+                    document.getElementById('modalTableId').value = tableId;
+                    document.getElementById('modalTableName').value = `${tableNum} (${location})`;
+                    UI.openModal('tableModal');
+                }
+
+                function submitTableReservation(e) {
+                    e.preventDefault();
+                    const tableId = document.getElementById('modalTableId').value;
+                    const guestName = document.getElementById('tableGuestName').value;
+                    const partySize = document.getElementById('tablePartySize').value;
+                    const timeSlot = document.getElementById('tableTime').value;
+                    const notes = document.getElementById('tableNotes').value;
+
+                    DB.execute(
+                        'INSERT INTO table_reservations (table_id, guest_name, party_size, time_slot, notes) VALUES (?, ?, ?, ?, ?)',
+                        [tableId, guestName, partySize, timeSlot, notes]
+                    );
+
+                    DB.execute('UPDATE tables SET status = "Reserved" WHERE id = ?', [tableId]);
+
+                    DB.execute('INSERT INTO notifications (title, message) VALUES (?, ?)', [
+                        'Table Reserved',
+                        `Table reservation confirmed for ${guestName} at ${timeSlot}.`
+                    ]);
+
+                    UI.closeModal('tableModal');
+                    Notifications.showToast(`Table reserved for ${guestName}!`, 'success');
+                    UI.refreshAll();
+                }
+
+                function cancelReservation(reservationId, tableId) {
+                    DB.execute('DELETE FROM table_reservations WHERE id = ?', [reservationId]);
+                    DB.execute('UPDATE tables SET status = "Available" WHERE id = ?', [tableId]);
+                    Notifications.showToast('Reservation cancelled', 'info');
+                    UI.refreshAll();
+                }
+
+                function filterMenu(category) {
+                    let sql = 'SELECT * FROM menu_items';
+                    const params = [];
+                    if (category !== 'ALL') {
+                        sql += ' WHERE category = ?';
+                        params.push(category);
+                    }
+                    const items = DB.query(sql, params);
+                    renderMenuItems(items);
+                }
+
+                function renderMenuItems(items) {
+                    const grid = document.getElementById('menuItemsGrid');
+                    if (!grid) return;
+
+                    grid.innerHTML = items.map(item => `
+                        <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 flex flex-col justify-between">
+                            <div class="h-36 bg-slate-100 overflow-hidden relative">
+                                <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x300/e2e8f0/475569?text=Asni+Cuisine'">
+                                <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${item.category}</span>
+                            </div>
+                            <div class="p-4 flex-grow flex flex-col justify-between space-y-3">
+                                <div>
+                                    <div class="flex justify-between items-start">
+                                        <h4 class="font-bold text-slate-900 text-sm">${item.name}</h4>
+                                        <span class="font-extrabold text-brand-700 text-base">$${item.price.toFixed(2)}</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-1">${item.description}</p>
+                                </div>
+                                <button onclick="AsniApp.Restaurant.orderDish('${item.name}', ${item.price})" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex justify-center items-center gap-1.5">
+                                    <i class="fa-solid fa-cart-plus"></i> Order Room Service
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                function orderDish(name, price) {
+                    DB.execute('INSERT INTO transactions (category, description, amount, payment_method, date) VALUES (?, ?, ?, ?, ?)', [
+                        'Restaurant',
+                        `Order: ${name}`,
+                        price,
+                        'Room Charge',
+                        new Date().toISOString().split('T')[0]
+                    ]);
+                    Notifications.showToast(`Ordered ${name} ($${price.toFixed(2)})`, 'success');
+                    UI.refreshAll();
+                }
+
+                return {
+                    switchSubTab,
+                    renderTables,
+                    openTableModal,
+                    submitTableReservation,
+                    cancelReservation,
+                    filterMenu,
+                    orderDish
+                };
+            })();
+
+            // ==========================================
+            // MODULE 5: REPORTS & ANALYTICS
+            // ==========================================
+            const Reports = (function() {
+
+                function renderReports() {
+                    // Populate Ledger
+                    const ledger = DB.query('SELECT * FROM transactions ORDER BY id DESC');
+                    const body = document.getElementById('reportsLedgerBody');
+                    if (body) {
+                        body.innerHTML = ledger.map(t => `
+                            <tr>
+                                <td class="p-3 font-mono font-bold text-slate-600">#TRX-${t.id}</td>
+                                <td class="p-3"><span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-semibold text-[10px]">${t.category}</span></td>
+                                <td class="p-3 font-medium text-slate-800">${t.description}</td>
+                                <td class="p-3 text-slate-500">${t.date}</td>
+                                <td class="p-3 text-slate-600">${t.payment_method}</td>
+                                <td class="p-3 text-right font-extrabold text-emerald-600">+$${t.amount.toFixed(2)}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    renderCharts();
+                }
+
+                function renderCharts() {
+                    // Render Revenue Bar Chart
+                    const ctxRev = document.getElementById('revenueChartCanvas');
+                    if (ctxRev) {
+                        if (charts.revenue) charts.revenue.destroy();
+                        
+                        const roomRev = DB.query("SELECT SUM(amount) as total FROM transactions WHERE category = 'Room Stay'")[0].total || 0;
+                        const restRev = DB.query("SELECT SUM(amount) as total FROM transactions WHERE category = 'Restaurant'")[0].total || 0;
+                        const spaRev = DB.query("SELECT SUM(amount) as total FROM transactions WHERE category = 'Spa Service'")[0].total || 0;
+
+                        charts.revenue = new Chart(ctxRev, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Room Bookings', 'Restaurant & Bar', 'Spa & Services'],
+                                datasets: [{
+                                    label: 'Revenue ($)',
+                                    data: [roomRev, restRev, spaRev],
+                                    backgroundColor: ['#a84323', '#f59e0b', '#10b981'],
+                                    borderRadius: 8
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false } }
+                            }
+                        });
+                    }
+
+                    // Render Occupancy Pie Chart
+                    const ctxOcc = document.getElementById('occupancyChartCanvas');
+                    if (ctxOcc) {
+                        if (charts.occupancy) charts.occupancy.destroy();
+
+                        const occupied = DB.query("SELECT COUNT(*) as count FROM rooms WHERE status = 'Occupied'")[0].count;
+                        const available = DB.query("SELECT COUNT(*) as count FROM rooms WHERE status = 'Available'")[0].count;
+                        const maintenance = DB.query("SELECT COUNT(*) as count FROM rooms WHERE status = 'Maintenance'")[0].count;
+
+                        charts.occupancy = new Chart(ctxOcc, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Occupied', 'Available', 'Maintenance'],
+                                datasets: [{
+                                    data: [occupied, available, maintenance],
+                                    backgroundColor: ['#e11d48', '#10b981', '#f59e0b']
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false
+                            }
+                        });
+                    }
+                }
+
+                function exportCSV() {
+                    const data = DB.query('SELECT * FROM transactions');
+                    if (data.length === 0) return;
+
+                    let csv = 'ID,Category,Description,Amount,Payment Method,Date\n';
+                    data.forEach(r => {
+                        csv += `"${r.id}","${r.category}","${r.description}","${r.amount}","${r.payment_method}","${r.date}"\n`;
+                    });
+
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'Asni_Guest_House_Financial_Report.csv';
+                    a.click();
+                }
+
+                return {
+                    renderReports,
+                    exportCSV
+                };
+            })();
+
+            // ==========================================
+            // MODULE 6: NOTIFICATIONS
+            // ==========================================
+            const Notifications = (function() {
+
+                function renderNotifications() {
+                    const list = DB.query('SELECT * FROM notifications ORDER BY id DESC LIMIT 8');
+                    const unreadCount = DB.query('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0')[0].count;
+
+                    // Update badges
+                    const badge = document.getElementById('notifBadge');
+                    const badgeMobile = document.getElementById('notifBadgeMobile');
+                    
+                    if (unreadCount > 0) {
+                        badge.innerText = unreadCount;
+                        badge.classList.remove('hidden');
+                        if (badgeMobile) {
+                            badgeMobile.innerText = unreadCount;
+                            badgeMobile.classList.remove('hidden');
+                        }
+                    } else {
+                        badge.classList.add('hidden');
+                        if (badgeMobile) badgeMobile.classList.add('hidden');
+                    }
+
+                    const container = document.getElementById('notifList');
+                    if (!container) return;
+
+                    if (list.length === 0) {
+                        container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">No system notifications.</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = list.map(n => `
+                        <div class="p-3 text-xs hover:bg-slate-50 ${n.is_read ? 'opacity-60' : 'font-semibold'}">
+                            <div class="text-slate-800">${n.title}</div>
+                            <div class="text-slate-500 font-normal mt-0.5">${n.message}</div>
+                            <div class="text-[10px] text-slate-400 mt-1">${n.created_at}</div>
+                        </div>
+                    `).join('');
+                }
+
+                function markAllRead() {
+                    DB.execute('UPDATE notifications SET is_read = 1');
+                    renderNotifications();
+                    showToast('All notifications marked as read', 'info');
+                }
+
+                function showToast(msg, type = 'success') {
+                    const container = document.getElementById('toastContainer');
+                    if (!container) return;
+
+                    const toast = document.createElement('div');
+                    let bg = 'bg-slate-900 text-white';
+                    if (type === 'success') bg = 'bg-emerald-600 text-white';
+                    if (type === 'info') bg = 'bg-brand-600 text-white';
+
+                    toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl text-xs font-bold flex items-center space-x-2 border border-white/20 transition transform duration-300 translate-y-2 ${bg}`;
+                    toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${msg}</span>`;
+
+                    container.appendChild(toast);
+
+                    setTimeout(() => {
+                        toast.classList.add('opacity-0', '-translate-y-2');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 3500);
+                }
+
+                return {
+                    renderNotifications,
+                    markAllRead,
+                    showToast
+                };
+            })();
+
+            // ==========================================
+            // MODULE 7: UI MANAGER
+            // ==========================================
+            const UI = (function() {
+
+                function initClock() {
+                    function update() {
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                        
+                        const timeEl = document.getElementById('liveClock');
+                        const dateEl = document.getElementById('liveDate');
+                        if (timeEl) timeEl.innerText = timeStr;
+                        if (dateEl) dateEl.innerText = dateStr;
+                    }
+                    update();
+                    setInterval(update, 1000);
+                }
+
+                function switchTab(tabId) {
+                    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+                    const target = document.getElementById(`view-${tabId}`);
+                    if (target) target.classList.remove('hidden');
+
+                    document.querySelectorAll('.nav-btn').forEach(btn => {
+                        btn.classList.remove('bg-brand-600', 'text-white');
+                        btn.classList.add('text-slate-300', 'hover:bg-slate-800');
+                        if (btn.dataset.tab === tabId) {
+                            btn.classList.add('bg-brand-600', 'text-white');
+                            btn.classList.remove('text-slate-300');
+                        }
+                    });
+
+                    refreshAll();
+                }
+
+                function renderBanners() {
+                    const ads = DB.query('SELECT * FROM ads');
+                    const container = document.getElementById('bannerContainer');
+                    const dots = document.getElementById('bannerDots');
+                    if (!container) return;
+
+                    container.innerHTML = ads.map((ad, idx) => `
+                        <div class="banner-slide absolute inset-0 p-6 sm:p-8 flex flex-col justify-center bg-gradient-to-r ${ad.bg_gradient} ${idx === currentBannerIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'}">
+                            <span class="text-xs font-extrabold uppercase tracking-widest text-amber-300 bg-black/30 w-max px-3 py-1 rounded-full border border-amber-300/30">${ad.discount}</span>
+                            <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold text-white mt-2">${ad.title}</h2>
+                            <p class="text-xs sm:text-sm text-slate-200 mt-1 max-w-xl font-light">${ad.tagline}</p>
+                            <button onclick="AsniApp.UI.switchTab('rooms')" class="mt-4 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-4 py-2 rounded-xl w-max transition shadow-lg">
+                                ${ad.cta_text} <i class="fa-solid fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    `).join('');
+
+                    dots.innerHTML = ads.map((_, idx) => `
+                        <button onclick="AsniApp.UI.setBannerIndex(${idx})" class="w-2.5 h-2.5 rounded-full ${idx === currentBannerIndex ? 'bg-amber-400' : 'bg-white/40'}"></button>
+                    `).join('');
+                }
+
+                function setBannerIndex(idx) {
+                    currentBannerIndex = idx;
+                    renderBanners();
+                }
+
+                function cycleBanners() {
+                    const count = DB.query('SELECT COUNT(*) as count FROM ads')[0]?.count || 1;
+                    currentBannerIndex = (currentBannerIndex + 1) % count;
+                    renderBanners();
+                }
+
+                function renderDashboard() {
+                    // Update KPI numbers
+                    const totalRev = DB.query('SELECT SUM(amount) as total FROM transactions')[0].total || 0;
+                    const totalRooms = DB.query('SELECT COUNT(*) as count FROM rooms')[0].count;
+                    const occupiedRooms = DB.query("SELECT COUNT(*) as count FROM rooms WHERE status = 'Occupied'")[0].count;
+                    const activeBookings = DB.query("SELECT COUNT(*) as count FROM bookings WHERE status = 'Checked-In'")[0].count;
+                    const diningBookings = DB.query('SELECT COUNT(*) as count FROM table_reservations')[0].count;
+
+                    const occRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+
+                    document.getElementById('kpiRevenue').innerText = `$${totalRev.toFixed(2)}`;
+                    document.getElementById('kpiOccupancy').innerText = `${occRate}%`;
+                    document.getElementById('kpiOccupancyRooms').innerText = `${occupiedRooms} of ${totalRooms} Rooms`;
+                    document.getElementById('kpiActiveBookings').innerText = activeBookings;
+                    document.getElementById('kpiDiningBookings').innerText = diningBookings;
+
+                    // Populate recent bookings
+                    const recent = DB.query(`
+                        SELECT b.*, r.room_number, r.type 
+                        FROM bookings b 
+                        JOIN rooms r ON b.room_id = r.id 
+                        ORDER BY b.id DESC LIMIT 5
+                    `);
+                    const tableBody = document.getElementById('dashboardBookingsTable');
+                    if (tableBody) {
+                        tableBody.innerHTML = recent.map(b => `
+                            <tr>
+                                <td class="p-3 font-semibold text-slate-800">${b.guest_name}</td>
+                                <td class="p-3 font-mono font-bold text-brand-700">Room ${b.room_number} (${b.type})</td>
+                                <td class="p-3 text-xs text-slate-500">${b.check_in} to ${b.check_out}</td>
+                                <td class="p-3 font-extrabold text-slate-900">$${b.total_price.toFixed(2)}</td>
+                                <td class="p-3"><span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">${b.status}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    // Render Amenities List
+                    const servicesList = document.getElementById('servicesList');
+                    if (servicesList) {
+                        servicesList.innerHTML = `
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-hot-tub-person"></i></div>
+                                    <div><p class="font-bold text-xs text-slate-800">Luxury Wellness Spa</p><p class="text-[10px] text-slate-500">Steam, Sauna & Sauna therapy</p></div>
+                                </div>
+                                <span class="text-xs font-bold text-emerald-600">Open</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-plane-departure"></i></div>
+                                    <div><p class="font-bold text-xs text-slate-800">Airport Express Shuttle</p><p class="text-[10px] text-slate-500">Bole Intl. Airport Transfers</p></div>
+                                </div>
+                                <span class="text-xs font-bold text-brand-600">Available</span>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-mug-hot"></i></div>
+                                    <div><p class="font-bold text-xs text-slate-800">Ethiopian Coffee Ceremony</p><p class="text-[10px] text-slate-500">Daily at 4:00 PM Garden Lounge</p></div>
+                                </div>
+                                <span class="text-xs font-bold text-amber-600">Included</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                function renderFrontDesk() {
+                    const rooms = DB.query('SELECT * FROM rooms');
+                    const grid = document.getElementById('frontdeskRoomGrid');
+                    if (!grid) return;
+
+                    grid.innerHTML = rooms.map(r => `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-slate-900 text-base">Room ${r.room_number}</h4>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    r.status === 'Available' ? 'bg-emerald-100 text-emerald-800' :
+                                    r.status === 'Occupied' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                                }">${r.status}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 font-medium">${r.type} • $${r.price.toFixed(2)}/night</p>
+                            <div class="pt-2 border-t border-slate-100 flex gap-2">
+                                <select onchange="AsniApp.UI.updateRoomStatus(${r.id}, this.value)" class="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 px-2 py-1 outline-none">
+                                    <option value="Available" ${r.status === 'Available' ? 'selected' : ''}>Available</option>
+                                    <option value="Occupied" ${r.status === 'Occupied' ? 'selected' : ''}>Occupied</option>
+                                    <option value="Maintenance" ${r.status === 'Maintenance' ? 'selected' : ''}>Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                function renderGuestPortal() {
+                    const bookings = DB.query(`
+                        SELECT b.*, r.room_number, r.type 
+                        FROM bookings b 
+                        JOIN rooms r ON b.room_id = r.id 
+                        ORDER BY b.id DESC
+                    `);
+                    const list = document.getElementById('guestBookingsList');
+                    if (!list) return;
+
+                    list.innerHTML = bookings.map(b => `
+                        <tr>
+                            <td class="p-3 font-mono font-bold text-brand-700">#RES-${b.id}</td>
+                            <td class="p-3 font-bold text-slate-800">Room ${b.room_number} (${b.type})</td>
+                            <td class="p-3 text-slate-600">${b.check_in}</td>
+                            <td class="p-3 text-slate-600">${b.check_out}</td>
+                            <td class="p-3 font-extrabold text-slate-900">$${b.total_price.toFixed(2)}</td>
+                            <td class="p-3"><span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">${b.status}</span></td>
+                            <td class="p-3"><button onclick="window.print()" class="text-brand-600 font-bold hover:underline"><i class="fa-solid fa-print"></i> Invoice</button></td>
+                        </tr>
+                    `).join('');
+                }
+
+                function updateRoomStatus(roomId, newStatus) {
+                    DB.execute('UPDATE rooms SET status = ? WHERE id = ?', [newStatus, roomId]);
+                    Notifications.showToast(`Room ${roomId} status updated to ${newStatus}`, 'info');
+                    refreshAll();
+                }
+
+                function openModal(id) {
+                    document.getElementById(id).classList.remove('hidden');
+                }
+
+                function closeModal(id) {
+                    document.getElementById(id).classList.add('hidden');
+                }
+
+                function toggleNotifDropdown() {
+                    document.getElementById('notifPanel').classList.toggle('hidden');
+                }
+
+                function toggleMobileMenu() {
+                    document.getElementById('mobileDrawer').classList.toggle('hidden');
+                }
+
+                function refreshAll() {
+                    renderDashboard();
+                    Rooms.applyFilters();
+                    Restaurant.renderTables();
+                    Restaurant.filterMenu('ALL');
+                    Reports.renderReports();
+                    renderFrontDesk();
+                    renderGuestPortal();
+                    Notifications.renderNotifications();
+                    renderBanners();
+                }
+
+                return {
+                    initClock,
+                    switchTab,
+                    setBannerIndex,
+                    cycleBanners,
+                    renderDashboard,
+                    updateRoomStatus,
+                    openModal,
+                    closeModal,
+                    toggleNotifDropdown,
+                    toggleMobileMenu,
+                    refreshAll
+                };
+            })();
+
+            // Initialize App Engine
+            async function start() {
+                await DB.init();
+                UI.initClock();
+                UI.refreshAll();
+
+                // Rotate ad banners every 6 seconds
+                setInterval(() => UI.cycleBanners(), 6000);
+            }
+
+            return {
+                start,
+                DB,
+                Auth,
+                Rooms,
+                Restaurant,
+                Reports,
+                Notifications,
+                UI
+            };
+        })();
+
+        // Start Application on Page Load
+        window.onload = function() {
+            AsniApp.start();
+        };
+    </script>
+</body>
+</html>
